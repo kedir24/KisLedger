@@ -4,35 +4,14 @@ import 'package:intl/intl.dart';
 import '../data/ledger_repository.dart';
 import '../models/account.dart';
 import '../models/journal.dart';
-import '../services/sync_service.dart';
 import '../utils/ethiopian_calendar.dart';
 import '../utils/strings.dart';
 
-enum SyncStatus { idle, syncing, success, error }
-
 class LedgerState extends ChangeNotifier {
-  LedgerState(this._repo) : sync = SyncService(_repo);
+  LedgerState(this._repo);
 
   final LedgerRepository _repo;
   LedgerRepository get repo => _repo;
-
-  final SyncService sync;
-
-  bool get cloudConfigured => sync.isConfigured;
-  bool get isSignedIn => sync.currentUser != null;
-  String? get userEmail => sync.currentUser?.email;
-
-  SyncStatus _syncStatus = SyncStatus.idle;
-  SyncStatus get syncStatus => _syncStatus;
-
-  String? _syncError;
-  String? get syncError => _syncError;
-
-  DateTime? _lastSyncedAt;
-  DateTime? get lastSyncedAt => _lastSyncedAt;
-
-  int _pendingCount = 0;
-  int get pendingCount => _pendingCount;
 
   AppLang _lang = AppLang.am;
   AppLang get lang => _lang;
@@ -72,18 +51,11 @@ class LedgerState extends ChangeNotifier {
   Future<void> load() async {
     _loading = true;
     notifyListeners();
-    await _refreshData();
-    _loading = false;
-    notifyListeners();
-
-    if (isSignedIn) _backgroundSync();
-  }
-
-  Future<void> _refreshData() async {
     _accounts = await _repo.accounts();
     _balances = await _repo.balances();
     _recent = await _repo.transactions(limit: 20);
-    _pendingCount = await _repo.pendingSyncCount();
+    _loading = false;
+    notifyListeners();
   }
 
   void setLanguage(AppLang lang) {
@@ -125,11 +97,6 @@ class LedgerState extends ChangeNotifier {
 
   Future<void> reverse(String transactionId) async {
     await _repo.reverse(transactionId);
-    await load();
-  }
-
-  Future<void> upsertAccount(Account account) async {
-    await _repo.upsertAccount(account);
     await load();
   }
 
@@ -194,65 +161,4 @@ class LedgerState extends ChangeNotifier {
     );
     await post(entry);
   }
-
-  // ---------------------------------------------------------------------
-  // Cloud sync
-  // ---------------------------------------------------------------------
-
-  Future<void> signIn({required String email, required String password}) async {
-    await sync.signIn(email: email, password: password);
-    notifyListeners();
-    await load();
-  }
-
-  Future<void> signUp({required String email, required String password}) async {
-    await sync.signUp(email: email, password: password);
-    notifyListeners();
-  }
-
-  Future<void> signOut() async {
-    await sync.signOut();
-    _syncStatus = SyncStatus.idle;
-    _syncError = null;
-    _lastSyncedAt = null;
-    notifyListeners();
-  }
-
-  /// Explicit, user-triggered sync — updates status so the Settings screen
-  /// can show progress or a clear error.
-  Future<void> syncNow() async {
-    _syncStatus = SyncStatus.syncing;
-    _syncError = null;
-    notifyListeners();
-    try {
-      await sync.sync();
-      _lastSyncedAt = DateTime.now();
-      _syncStatus = SyncStatus.success;
-      await _refreshData();
-    } catch (e) {
-      _syncStatus = SyncStatus.error;
-      _syncError = e.toString();
-    }
-    notifyListeners();
-  }
-
-  /// Best-effort sync run automatically after local writes or on load.
-  /// Failures (most commonly: no internet) are swallowed quietly — the
-  /// pending-changes count still shows there is work to push next time.
-  Future<void> _backgroundSync() async {
-    if (!cloudConfigured || !isSignedIn) return;
-    try {
-      await sync.sync();
-      _lastSyncedAt = DateTime.now();
-      await _refreshData();
-      notifyListeners();
-    } catch (_) {
-      // Offline or a transient error — the next post, app resume, or
-      // manual "Sync now" tap will try again.
-    }
-  }
-
-  /// Public entry point for triggers outside this class — e.g. the app
-  /// coming back to the foreground, when connectivity may have returned.
-  Future<void> trySyncInBackground() => _backgroundSync();
 }

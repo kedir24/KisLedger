@@ -17,10 +17,9 @@ class AppDatabase {
     final dir = await getDatabasesPath();
     return openDatabase(
       p.join(dir, 'smartledger.db'),
-      version: 2,
+      version: 1,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _create,
-      onUpgrade: _upgrade,
     );
   }
 
@@ -33,9 +32,7 @@ class AppDatabase {
         name_en TEXT NOT NULL,
         type TEXT NOT NULL,
         opening_balance INTEGER NOT NULL DEFAULT 0,
-        is_active INTEGER NOT NULL DEFAULT 1,
-        updated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000',
-        is_synced INTEGER NOT NULL DEFAULT 0
+        is_active INTEGER NOT NULL DEFAULT 1
       )
     ''');
 
@@ -47,8 +44,7 @@ class AppDatabase {
         memo TEXT,
         attachment_path TEXT,
         created_at TEXT NOT NULL,
-        reversal_of_id TEXT REFERENCES transactions(id),
-        is_synced INTEGER NOT NULL DEFAULT 0
+        reversal_of_id TEXT REFERENCES transactions(id)
       )
     ''');
 
@@ -66,36 +62,14 @@ class AppDatabase {
     await db.execute(
         'CREATE INDEX idx_lines_account ON journal_lines(account_id)');
     await db.execute('CREATE INDEX idx_tx_date ON transactions(date)');
-    await db.execute(
-        'CREATE INDEX idx_accounts_synced ON accounts(is_synced)');
-    await db.execute(
-        'CREATE INDEX idx_tx_synced ON transactions(is_synced)');
 
     for (final account in seedAccounts) {
       await db.insert('accounts', account.toMap());
     }
   }
 
-  /// Adds the two sync-tracking columns for anyone upgrading from v1, who
-  /// had no cloud sync at all — everything they already posted counts as
-  /// not-yet-synced so the first sign-in pushes their full history.
-  Future<void> _upgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute(
-          "ALTER TABLE accounts ADD COLUMN updated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000'");
-      await db.execute(
-          'ALTER TABLE accounts ADD COLUMN is_synced INTEGER NOT NULL DEFAULT 0');
-      await db.execute(
-          'ALTER TABLE transactions ADD COLUMN is_synced INTEGER NOT NULL DEFAULT 0');
-      await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_accounts_synced ON accounts(is_synced)');
-      await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_tx_synced ON transactions(is_synced)');
-    }
-  }
-
   /// A starter chart of accounts for a small Ethiopian shop.
-  static final seedAccounts = <Account>[
+  static const seedAccounts = <Account>[
     Account(
         id: 'acc-cash',
         code: '1000',

@@ -54,34 +54,9 @@ class JournalLine {
         credit: (m['credit'] as int?) ?? 0,
         note: (m['note'] as String?) ?? '',
       );
-
-  /// Payload for the `journal_lines` table in Supabase.
-  Map<String, Object?> toRemoteMap(String userId) => {
-        'id': id,
-        'user_id': userId,
-        'transaction_id': transactionId,
-        'account_id': accountId,
-        'debit': debit,
-        'credit': credit,
-        'note': note,
-      };
-
-  factory JournalLine.fromRemoteMap(Map<String, Object?> m) => JournalLine(
-        id: m['id'] as String,
-        transactionId: m['transaction_id'] as String,
-        accountId: m['account_id'] as String,
-        debit: (m['debit'] as num?)?.toInt() ?? 0,
-        credit: (m['credit'] as num?)?.toInt() ?? 0,
-        note: (m['note'] as String?) ?? '',
-      );
 }
 
 /// A posted transaction. Never deleted — reverse it instead.
-///
-/// Because posted transactions are immutable, syncing them needs no
-/// last-write-wins logic: a transaction either exists on both sides with
-/// identical content, or it needs to be copied across once. [isSynced]
-/// just remembers whether that one-time copy has happened yet.
 class LedgerTransaction {
   final String id;
   final DateTime date;
@@ -90,7 +65,6 @@ class LedgerTransaction {
   final String? attachmentPath;
   final DateTime createdAt;
   final String? reversalOfId;
-  final bool isSynced;
 
   const LedgerTransaction({
     required this.id,
@@ -100,21 +74,9 @@ class LedgerTransaction {
     this.memo = '',
     this.attachmentPath,
     this.reversalOfId,
-    this.isSynced = false,
   });
 
   bool get isReversal => reversalOfId != null;
-
-  LedgerTransaction copyWith({bool? isSynced}) => LedgerTransaction(
-        id: id,
-        date: date,
-        createdAt: createdAt,
-        reference: reference,
-        memo: memo,
-        attachmentPath: attachmentPath,
-        reversalOfId: reversalOfId,
-        isSynced: isSynced ?? this.isSynced,
-      );
 
   Map<String, Object?> toMap() => {
         'id': id,
@@ -124,7 +86,6 @@ class LedgerTransaction {
         'attachment_path': attachmentPath,
         'created_at': createdAt.toIso8601String(),
         'reversal_of_id': reversalOfId,
-        'is_synced': isSynced ? 1 : 0,
       };
 
   factory LedgerTransaction.fromMap(Map<String, Object?> m) =>
@@ -136,31 +97,6 @@ class LedgerTransaction {
         attachmentPath: m['attachment_path'] as String?,
         createdAt: DateTime.parse(m['created_at'] as String),
         reversalOfId: m['reversal_of_id'] as String?,
-        isSynced: (m['is_synced'] as int? ?? 0) == 1,
-      );
-
-  /// Payload for the `transactions` table in Supabase.
-  Map<String, Object?> toRemoteMap(String userId) => {
-        'id': id,
-        'user_id': userId,
-        'date': date.toIso8601String(),
-        'reference': reference,
-        'memo': memo,
-        'attachment_path': attachmentPath,
-        'created_at': createdAt.toIso8601String(),
-        'reversal_of_id': reversalOfId,
-      };
-
-  factory LedgerTransaction.fromRemoteMap(Map<String, Object?> m) =>
-      LedgerTransaction(
-        id: m['id'] as String,
-        date: DateTime.parse(m['date'] as String),
-        reference: (m['reference'] as String?) ?? '',
-        memo: (m['memo'] as String?) ?? '',
-        attachmentPath: m['attachment_path'] as String?,
-        createdAt: DateTime.parse(m['created_at'] as String),
-        reversalOfId: m['reversal_of_id'] as String?,
-        isSynced: true,
       );
 }
 

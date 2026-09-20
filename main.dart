@@ -8,17 +8,11 @@ import 'screens/journal_entry_screen.dart';
 import 'screens/ledger_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
-import 'services/supabase_config.dart';
 import 'state/ledger_state.dart';
 import 'theme.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Offline-first: if this fails (no network, or not configured at all)
-  // the app still boots and works entirely from the local database.
-  try {
-    await SupabaseConfig.init();
-  } catch (_) {}
   runApp(const SmartLedgerApp());
 }
 
@@ -53,27 +47,8 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
+class _HomeShellState extends State<HomeShell> {
   int _index = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      context.read<LedgerState>().trySyncInBackground();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

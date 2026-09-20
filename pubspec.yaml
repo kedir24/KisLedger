@@ -14,11 +14,10 @@ dependencies:
   provider: ^6.1.2
   sqflite: ^2.3.3
   path: ^1.9.0
-  intl: ^0.20.2
+  intl: ^0.19.0
   uuid: ^4.4.0
   pdf: ^3.11.1
   printing: ^5.13.3
-  supabase_flutter: ^2.8.0
   # Ethiopian calendar conversion is hand-rolled in lib/utils/ethiopian_calendar.dart
   # (verified against Wikipedia reference dates) — no extra package needed.
 

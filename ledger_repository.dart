@@ -46,9 +46,7 @@ class LedgerRepository {
 
   Future<void> upsertAccount(Account account) async {
     final db = await _appDb.database;
-    // Any local write is, by definition, an edit that still needs pushing.
-    final dirty = account.copyWith(updatedAt: DateTime.now(), isSynced: false);
-    await db.insert('accounts', dirty.toMap(),
+    await db.insert('accounts', account.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -213,92 +211,5 @@ class LedgerRepository {
     final r = await db.rawQuery(
         'SELECT SUM(debit) AS d, SUM(credit) AS c FROM journal_lines');
     return ((r.first['d'] as int?) ?? 0, (r.first['c'] as int?) ?? 0);
-  }
-
-  // ---------------------------------------------------------------------
-  // Cloud sync support. Push sends local changes up; pull merges remote
-  // changes down. See lib/services/sync_service.dart for how these are
-  // combined into one sync pass.
-  // ---------------------------------------------------------------------
-
-  Future<List<Account>> unsyncedAccounts() async {
-    final db = await _appDb.database;
-    final rows = await db.query('accounts', where: 'is_synced = 0');
-    return rows.map(Account.fromMap).toList();
-  }
-
-  Future<List<LedgerTransaction>> unsyncedTransactions() async {
-    final db = await _appDb.database;
-    final rows = await db.query('transactions', where: 'is_synced = 0');
-    return rows.map(LedgerTransaction.fromMap).toList();
-  }
-
-  Future<int> pendingSyncCount() async {
-    final accounts = await unsyncedAccounts();
-    final txs = await unsyncedTransactions();
-    return accounts.length + txs.length;
-  }
-
-  /// Marks an account synced only if it has not been edited again locally
-  /// since [pushedUpdatedAt] was read — otherwise the newer edit would be
-  /// silently marked as already pushed.
-  Future<void> markAccountSynced(String id, DateTime pushedUpdatedAt) async {
-    final db = await _appDb.database;
-    await db.update(
-      'accounts',
-      {'is_synced': 1},
-      where: 'id = ? AND updated_at = ?',
-      whereArgs: [id, pushedUpdatedAt.toIso8601String()],
-    );
-  }
-
-  /// Transactions are immutable once posted, so there is no race to guard
-  /// against here — a simple flag flip is enough.
-  Future<void> markTransactionSynced(String id) async {
-    final db = await _appDb.database;
-    await db.update('transactions', {'is_synced': 1},
-        where: 'id = ?', whereArgs: [id]);
-  }
-
-  /// Merges one remote account into the local copy: newer `updated_at`
-  /// wins. A remote account absent locally is inserted as already-synced.
-  /// Returns true when the local row was inserted or overwritten.
-  Future<bool> mergeAccountFromRemote(Account remote) async {
-    final db = await _appDb.database;
-    final rows =
-        await db.query('accounts', where: 'id = ?', whereArgs: [remote.id]);
-    if (rows.isEmpty) {
-      await db.insert('accounts', remote.toMap());
-      return true;
-    }
-    final local = Account.fromMap(rows.first);
-    if (remote.updatedAt.isAfter(local.updatedAt)) {
-      await db.insert('accounts', remote.toMap(),
-          conflictAlgorithm: ConflictAlgorithm.replace);
-      return true;
-    }
-    // Otherwise the local edit is newer (or equal) and will be pushed
-    // on the next sync pass instead of being overwritten here.
-    return false;
-  }
-
-  /// Inserts a remote transaction and its lines if they are not already
-  /// present locally. Transactions never change once posted, so this is a
-  /// plain "copy if missing" — never an overwrite.
-  Future<void> insertTransactionFromRemoteIfMissing(
-    LedgerTransaction remoteTx,
-    List<JournalLine> remoteLines,
-  ) async {
-    final db = await _appDb.database;
-    final existing = await db.query('transactions',
-        where: 'id = ?', whereArgs: [remoteTx.id], limit: 1);
-    if (existing.isNotEmpty) return;
-
-    await db.transaction((txn) async {
-      await txn.insert('transactions', remoteTx.toMap());
-      for (final line in remoteLines) {
-        await txn.insert('journal_lines', line.toMap());
-      }
-    });
   }
 }
