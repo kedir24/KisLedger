@@ -1,0 +1,67 @@
+# ==========================================
+# 1. Flutter / Dart Specific
+# ==========================================
+# Flutter/Dart build and tool outputs
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Symbol files for native crash reporting
+*.symbols
+
+# Absolute paths or generated files
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+
+# ==========================================
+# 2. Android Specific
+# ==========================================
+# Android Gradle build files & local properties
+.gradle/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/captures/
+**/android/.externalNativeBuild
+**/android/.cxx/
+
+# Android Studio / IntelliJ project files
+*.iml
+.idea/
+.project
+.classpath
+
+# Native keystore files (Do NOT commit sensitive keys)
+*.keystore
+*.jks
+
+# ==========================================
+# 3. iOS / macOS Specific
+# ==========================================
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.fltframework
+**/ios/DerivedData/
+**/ios/Runner.xcworkspace/
+**/ios/Pods/
+**/ios/Podfile.lock
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ==========================================
+# 4. Environment & Editor Variables
+# ==========================================
+*.env
+.vscode/
+*.swp
+*.bak
